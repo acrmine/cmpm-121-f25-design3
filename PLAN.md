@@ -22,8 +22,14 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] copy main.ts to reference.ts for future reference
 - [x] delete everything in main.ts
 - [x] put a basic leaflet map on the screen
-- [ ] draw the player's location on the map
-- [ ] draw a rectangle representing one cell on the map
-- [ ] use loops to draw a whole grid of cells on the map
+- [x] draw the player's location on the map
+- [x] draw a rectangle representing one cell on the map
+- [x] use loops to draw a whole grid of cells on the map
+- [ ] make a token class that can be clicked on
+- [ ] change spawn cache to spawn a token in a given cell (can also spawn the rectangle for now)
+- [ ] allow tokens clicked on within range to be displayed in an inventory under the map
+- [ ] allow tokens to be placed back down again when you click on an empty cell
+- [ ] if token is placed on cell with equal value token, combine them
+- [ ] if a token is placed on an unequal token cell, put down your current token and pick up the cell token
 
 ## D3.b: Fill in once I get here

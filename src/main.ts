@@ -8,6 +8,9 @@ import "./style.css"; // student-controlled page style
 // Fix missing marker images
 import "./_leafletWorkaround.ts"; // fixes for missing Leaflet images
 
+// Import our luck function
+import luck from "./_luck.ts";
+
 // Create basic UI elements
 const mapDiv = document.createElement("div");
 mapDiv.id = "map";
@@ -41,3 +44,31 @@ leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution:
     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
+
+// Add a marker to represent the player
+const playerMarker = leaflet.marker(CLASSROOM_LATLNG);
+playerMarker.bindTooltip("That's you!");
+playerMarker.addTo(map);
+
+function spawnCache(i: number, j: number) {
+  // Convert cell numbers into lat/lng bounds
+  const origin = CLASSROOM_LATLNG;
+  const bounds = leaflet.latLngBounds([
+    [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
+    [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
+  ]);
+
+  // Add a rectangle to the map to represent the cache
+  const rect = leaflet.rectangle(bounds);
+  rect.addTo(map);
+}
+
+// Look around the player's neighborhood for caches to spawn
+for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
+  for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
+    // If location i,j is lucky enough, spawn a cache!
+    if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
+      spawnCache(i, j);
+    }
+  }
+}
