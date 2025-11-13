@@ -31,11 +31,58 @@ const CACHE_SPAWN_PROBABILITY = 0.1;
 // *************** CLASSES AND TYPES ***************
 // ************************************************
 
-type Token = {
+class Token {
   posLatLng: leaflet.LatLng;
   value: number;
-  marker: leaflet.Marker;
-};
+  containingMap: leaflet.Map;
+  marker: leaflet.Marker | null = null;
+
+  constructor(x: number, y: number, map: leaflet.Map, value: number = 1, origin: leaflet.LatLng = CLASSROOM_LATLNG) {
+    this.value = value;
+    this.containingMap = map;
+
+    const bounds = leaflet.latLngBounds([
+      [origin.lat + x * TILE_DEGREES, origin.lng + y * TILE_DEGREES],
+      [
+        origin.lat + (x + 1) * TILE_DEGREES,
+        origin.lng + (y + 1) * TILE_DEGREES,
+      ],
+    ]);
+    this.posLatLng = bounds.getCenter();
+
+    this.marker = leaflet.marker(bounds.getCenter(), { icon: this.getStdMarkerIcon(value.toString()) });
+    this.marker.addTo(map);
+
+    this.marker.on("click", this.onTokenClick);
+  }
+
+  getStdMarkerIcon(value: string) {
+    const tokenIcon = leaflet.divIcon({
+      className: "token",
+      html: `<div>${value}</div>`,
+      iconSize: [25, 25],
+    });
+    return tokenIcon;
+  }
+
+  onTokenClick() {
+    if (inventory.holdingItem) {
+      if (inventory.heldItemValue !== this.value.toString()) {
+        const temp = inventory.heldItemValue;
+        inventory.holdItem(this.value.toString());
+
+        if (temp !== null) {
+          this.marker!.setIcon(this.getStdMarkerIcon(temp));
+        }
+      } else {
+        inventory.removeHeldItem();
+        this.marker!.setIcon(this.getStdMarkerIcon((this.value * 2).toString()));
+      }
+    } else if (!inventory.holdingItem) {
+      inventory.holdItem(this.value.toString());
+    }
+  }
+}
 
 class Map {
   obj: leaflet.Map;
@@ -65,41 +112,17 @@ class Map {
     }).addTo(this.obj);
   }
 
-  spawnCache(i: number, j: number, value: number = 1) {
-    // Convert cell numbers into lat/lng bounds
-    const bounds = leaflet.latLngBounds([
-      [this.origin.lat + i * TILE_DEGREES, this.origin.lng + j * TILE_DEGREES],
-      [
-        this.origin.lat + (i + 1) * TILE_DEGREES,
-        this.origin.lng + (j + 1) * TILE_DEGREES,
-      ],
-    ]);
-
+  updateMarkerIcon(marker: leaflet.Marker, value: string) {
     const tokenIcon = leaflet.divIcon({
       className: "token",
       html: `<div>${value}</div>`,
       iconSize: [25, 25],
     });
+    marker.setIcon(tokenIcon);
+  }
 
-    // Add a token marker to the map
-    const tokenMarker = leaflet.marker(bounds.getCenter(), { icon: tokenIcon });
-    tokenMarker.addTo(this.obj);
-
-    this.tokens.push({
-      posLatLng: bounds.getCenter(),
-      value: value,
-      marker: tokenMarker,
-    });
-
-    tokenMarker.on("click", () => {
-      if (inventory.holdingItem && inventory.heldItemValue !== value.toString()) {
-        let temp = inventory.heldItemValue;
-        inventory.holdItem(value.toString());
-
-        let currIcon = tokenMarker.getIcon();
-        currIcon = `<div>${temp}</div>`;
-      }
-    });
+  spawnCache(i: number, j: number, value: number = 1) {
+    this.tokens.push(new Token(i, j, this.obj, value, this.origin));
   }
 }
 
@@ -139,11 +162,9 @@ class Inventory {
   holdItem(value: string) {
     if (this.currItem !== null) {
       this.currItem.innerText = value;
-      this.currItem.style.backgroundColor = generateColor(parseInt(value));
     } else {
       this.currItem = document.createElement("div");
       this.currItem.className = "token";
-      this.currItem.style.backgroundColor = generateColor(parseInt(value));
       this.currItem.innerText = value;
       this.invCont.appendChild(this.currItem);
     }
@@ -159,38 +180,6 @@ function randInt(min: number, max: number): number {
   const range = max - min;
   const r = Math.pow(Math.random(), 3); // cubic bias towards 0
   return min + Math.floor(r * range);
-}
-
-// Utility: convert HSL to RGB, used by color generator
-function hslToRgb(h: number, s: number, l: number): [number, number, number] {
-  // h in [0,360), s and l in [0,100]
-  s /= 100;
-  l /= 100;
-
-  const k = (n: number) => (n + h / 30) % 12;
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-
-  const r = Math.round(255 * f(0));
-  const g = Math.round(255 * f(8));
-  const b = Math.round(255 * f(4));
-  return [r, g, b];
-}
-
-// Utility: generate a deterministic light/diffuse color from an integer seed.
-function generateColor(seed: number): string {
-  // Normalize seed to a 32-bit non-negative integer
-  const s = Math.floor(seed) >>> 0;
-
-  // Derive H, S, L deterministically from the seed
-  const hue = (s * 2654435761) % 360; // Knuth multiplicative hashing then mod 360
-  const sat = 40 + ((s >>> 8) % 20); // saturation between 40-59
-  const light = 70 + ((s >>> 16) % 20); // lightness between 70-89 (light colors)
-
-  const [r, g, b] = hslToRgb(hue, sat, light);
-
-  const toHex = (v: number) => v.toString(16).padStart(2, "0");
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
 // ************************************************
