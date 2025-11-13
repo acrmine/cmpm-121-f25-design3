@@ -91,15 +91,15 @@ class Map {
       marker: tokenMarker,
     });
 
-    // tokenMarker.on("click", () => {
-    //   if (inventory.holdingItem && inventory.heldItemValue !== value.toString()) {
-    //     let temp = inventory.heldItemValue;
-    //     inventory.holdItem(value.toString());
+    tokenMarker.on("click", () => {
+      if (inventory.holdingItem && inventory.heldItemValue !== value.toString()) {
+        let temp = inventory.heldItemValue;
+        inventory.holdItem(value.toString());
 
-    //     let currIcon = tokenMarker.getIcon();
-    //     currIcon = `<div>${temp}</div>`;
-    //   }
-    // });
+        let currIcon = tokenMarker.getIcon();
+        currIcon = `<div>${temp}</div>`;
+      }
+    });
   }
 }
 
@@ -200,7 +200,7 @@ function generateColor(seed: number): string {
 // Create the map centered on the classroom
 const map = new Map(CLASSROOM_LATLNG, GAMEPLAY_ZOOM_LEVEL);
 
-const _inventory = new Inventory();
+const inventory = new Inventory();
 
 // Add a marker to represent the player
 const playerMarker = leaflet.marker(CLASSROOM_LATLNG);
