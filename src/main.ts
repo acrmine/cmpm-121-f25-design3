@@ -43,69 +43,69 @@ interface Cache {
   tokens: Map<leaflet.Marker, number>;
 }
 
-class _TokenBad {
-  posLatLng: leaflet.LatLng;
-  value: number;
-  containingMap: leaflet.Map;
-  marker: leaflet.Marker | null = null;
+// class _TokenBad {
+//   posLatLng: leaflet.LatLng;
+//   value: number;
+//   containingMap: leaflet.Map;
+//   marker: leaflet.Marker | null = null;
 
-  constructor(x: number, y: number, map: leaflet.Map, value: number = 1, origin: leaflet.LatLng = CLASSROOM_LATLNG) {
-    this.value = value;
-    this.containingMap = map;
+//   constructor(x: number, y: number, map: leaflet.Map, value: number = 1, origin: leaflet.LatLng = CLASSROOM_LATLNG) {
+//     this.value = value;
+//     this.containingMap = map;
 
-    const bounds = leaflet.latLngBounds([
-      [origin.lat + x * TILE_DEGREES, origin.lng + y * TILE_DEGREES],
-      [
-        origin.lat + (x + 1) * TILE_DEGREES,
-        origin.lng + (y + 1) * TILE_DEGREES,
-      ],
-    ]);
-    this.posLatLng = bounds.getCenter();
+//     const bounds = leaflet.latLngBounds([
+//       [origin.lat + x * TILE_DEGREES, origin.lng + y * TILE_DEGREES],
+//       [
+//         origin.lat + (x + 1) * TILE_DEGREES,
+//         origin.lng + (y + 1) * TILE_DEGREES,
+//       ],
+//     ]);
+//     this.posLatLng = bounds.getCenter();
 
-    this.marker = leaflet.marker(bounds.getCenter(), { icon: this.getStdMarkerIcon(value.toString()) });
-    this.marker.addTo(map);
+//     this.marker = leaflet.marker(bounds.getCenter(), { icon: this.getStdMarkerIcon(value.toString()) });
+//     this.marker.addTo(map);
 
-    this.marker.on("click", () => {
-      this.onTokenClick();
-    });
-  }
+//     this.marker.on("click", () => {
+//       this.onTokenClick();
+//     });
+//   }
 
-  getStdMarkerIcon(value: string) {
-    const tokenIcon = leaflet.divIcon({
-      className: "token",
-      html: `<div>${value}</div>`,
-      iconSize: [25, 25],
-    });
-    return tokenIcon;
-  }
+//   getStdMarkerIcon(value: string) {
+//     const tokenIcon = leaflet.divIcon({
+//       className: "token",
+//       html: `<div>${value}</div>`,
+//       iconSize: [25, 25],
+//     });
+//     return tokenIcon;
+//   }
 
-  onTokenClick() {
-    if (inventory.holdingItem) {
-      if (inventory.heldItemValue !== this.value.toString()) {
-        const temp = inventory.heldItemValue;
-        inventory.holdItem(this.value.toString());
+//   onTokenClick() {
+//     if (inventory.holdingItem) {
+//       if (inventory.heldItemValue !== this.value.toString()) {
+//         const temp = inventory.heldItemValue;
+//         inventory.holdItem(this.value.toString());
 
-        if (temp !== null) {
-          this.marker!.setIcon(this.getStdMarkerIcon(temp));
-          this.value = parseInt(temp);
-        }
-      } else {
-        inventory.removeHeldItem();
-        this.marker!.setIcon(this.getStdMarkerIcon((this.value * 2).toString()));
-        this.value *= 2;
-      }
-    } else if (!inventory.holdingItem) {
-      inventory.holdItem(this.value.toString());
-      this.marker!.remove();
-      this.marker = null;
-    }
-  }
-}
+//         if (temp !== null) {
+//           this.marker!.setIcon(this.getStdMarkerIcon(temp));
+//           this.value = parseInt(temp);
+//         }
+//       } else {
+//         inventory.removeHeldItem();
+//         this.marker!.setIcon(this.getStdMarkerIcon((this.value * 2).toString()));
+//         this.value *= 2;
+//       }
+//     } else if (!inventory.holdingItem) {
+//       inventory.holdItem(this.value.toString());
+//       this.marker!.remove();
+//       this.marker = null;
+//     }
+//   }
+// }
 
 class LeafletMap {
   obj: leaflet.Map;
   origin: leaflet.LatLng;
-  caches: Map<Coord, Cache> = new Map();
+  caches: Map<string, Cache> = new Map();
 
   constructor(center: leaflet.LatLng, zoom: number) {
     this.origin = center;
@@ -133,12 +133,10 @@ class LeafletMap {
     this.obj.on("click", (e: leaflet.LeafletMouseEvent) => {
       const clickLatLng = e.latlng;
       const clickCoord = coordsFromLatLng(clickLatLng, this.origin);
-      const cache = this.caches.get({ x: clickCoord.x, y: clickCoord.y });
-      if (!cache || distanceInTiles(clickLatLng, this.origin) > INTERACTION_RADIUS) {
-        console.log("No cache here!");
+      const cache = this.getCacheAtCoord(clickCoord);
+      if (!cache || distanceInDegrees(clickLatLng, this.origin) > INTERACTION_RADIUS) {
         return;
       }
-      console.log("Cache found!");
       if (inventory.holdingItem) {
         this.addCacheToken(cache, parseInt(inventory.heldItemValue!), clickLatLng);
         inventory.removeHeldItem();
@@ -146,17 +144,20 @@ class LeafletMap {
     });
   }
 
+  getCacheAtCoord(coord: Coord): Cache | undefined {
+    return this.caches.get(`${coord.x},${coord.y}`);
+  }
+
+  setCacheAtCoord(coord: Coord, cache: Cache) {
+    this.caches.set(`${coord.x},${coord.y}`, cache);
+  }
+
   onTokenClick(e: leaflet.LeafletMouseEvent) {
-    const coords = coordsFromLatLng(e.latlng, this.origin);
-    console.log("Token clicked ", coords);
     const tokenMarker = e.target as leaflet.Marker;
-    const cache = this.caches.get(coordsFromLatLng(tokenMarker.getLatLng(), this.origin));
+    const cache = this.getCacheAtCoord(coordsFromLatLng(tokenMarker.getLatLng(), this.origin));
     const tokenValue = cache?.tokens.get(tokenMarker);
 
-    if (cache === undefined || tokenMarker === undefined || distanceInTiles(tokenMarker.getLatLng(), this.origin) > INTERACTION_RADIUS) {
-      console.log(typeof cache);
-      console.log(typeof tokenValue);
-      console.log("Token out of range");
+    if (cache === undefined || tokenValue === undefined || distanceInDegrees(tokenMarker.getLatLng(), this.origin) > INTERACTION_RADIUS) {
       return;
     }
 
@@ -207,9 +208,7 @@ class LeafletMap {
       tokens: cacheTokens,
     };
     this.addCacheToken(cache, startingTokenValue, bounds.getCenter());
-    this.caches.set({ x: i, y: j }, cache);
-
-    console.log("Token clicked ", coordsFromLatLng(bounds.getCenter(), this.origin));
+    this.setCacheAtCoord({ x: i, y: j }, cache);
   }
 
   addCacheToken(cache: Cache, value: number, posLatLng: leaflet.LatLng) {
@@ -305,10 +304,18 @@ function coordsFromLatLng(latlng: leaflet.LatLng, origin: leaflet.LatLng): Coord
 }
 
 // Utility: function that computes the distance between two lat/lng points in degrees
-function distanceInTiles(a: leaflet.LatLng, b: leaflet.LatLng): number {
+function distanceInDegrees(a: leaflet.LatLng, b: leaflet.LatLng): number {
   const latDiff = b.lat - a.lat;
   const lngDiff = b.lng - a.lng;
   return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+}
+
+// Utility: function that prints the contents of a map (for debugging)
+function _printMapContents(map: Map<Coord, Cache>) {
+  console.log("Map contents:");
+  map.forEach((value: Cache, key: Coord) => {
+    console.log("Key: ", key, " Value: ", value);
+  });
 }
 
 // ************************************************

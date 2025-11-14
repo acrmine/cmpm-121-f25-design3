@@ -29,9 +29,9 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] make a map class that stores token locations and leaflet map
 - [x] change spawn cache to spawn a token in a given cell
 - [x] allow tokens clicked on within range to be displayed in an inventory under the map
-- [ ] allow tokens to be placed back down again when you click on an empty cell
-- [ ] if token is placed on cell with equal value token, combine them
-- [ ] if a token is placed on an unequal token cell, put down your current token and pick up the cell token
+- [x] allow tokens to be placed back down again when you click on an empty cell
+- [x] if token is placed on another token with equal value, combine them
+- [x] if a token is placed on an unequal token cell, put down your current token and pick up the cell token
 
 ### Switching direction plan
 
