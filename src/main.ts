@@ -26,12 +26,24 @@ const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
 const CACHE_SPAWN_PROBABILITY = 0.1;
+const INTERACTION_RADIUS = 0.0003; // 3 times TILE_DEGREES
 
 // ************************************************
 // *************** CLASSES AND TYPES ***************
 // ************************************************
 
-class Token {
+type Coord = {
+  x: number;
+  y: number;
+};
+
+interface Cache {
+  posCoord: { i: number; j: number };
+  rectangle: leaflet.Rectangle;
+  tokens: Map<leaflet.Marker, number>;
+}
+
+class _TokenBad {
   posLatLng: leaflet.LatLng;
   value: number;
   containingMap: leaflet.Map;
@@ -53,7 +65,9 @@ class Token {
     this.marker = leaflet.marker(bounds.getCenter(), { icon: this.getStdMarkerIcon(value.toString()) });
     this.marker.addTo(map);
 
-    this.marker.on("click", this.onTokenClick);
+    this.marker.on("click", () => {
+      this.onTokenClick();
+    });
   }
 
   getStdMarkerIcon(value: string) {
@@ -73,21 +87,25 @@ class Token {
 
         if (temp !== null) {
           this.marker!.setIcon(this.getStdMarkerIcon(temp));
+          this.value = parseInt(temp);
         }
       } else {
         inventory.removeHeldItem();
         this.marker!.setIcon(this.getStdMarkerIcon((this.value * 2).toString()));
+        this.value *= 2;
       }
     } else if (!inventory.holdingItem) {
       inventory.holdItem(this.value.toString());
+      this.marker!.remove();
+      this.marker = null;
     }
   }
 }
 
-class Map {
+class LeafletMap {
   obj: leaflet.Map;
   origin: leaflet.LatLng;
-  tokens: Token[] = [];
+  caches: Map<Coord, Cache> = new Map();
 
   constructor(center: leaflet.LatLng, zoom: number) {
     this.origin = center;
@@ -110,19 +128,101 @@ class Map {
       maxZoom: 19,
       attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(this.obj);
+
+    // Handle clicks on the map
+    this.obj.on("click", (e: leaflet.LeafletMouseEvent) => {
+      const clickLatLng = e.latlng;
+      const clickCoord = coordsFromLatLng(clickLatLng, this.origin);
+      const cache = this.caches.get({ x: clickCoord.x, y: clickCoord.y });
+      if (!cache || distanceInTiles(clickLatLng, this.origin) > INTERACTION_RADIUS) {
+        console.log("No cache here!");
+        return;
+      }
+      console.log("Cache found!");
+      if (inventory.holdingItem) {
+        this.addCacheToken(cache, parseInt(inventory.heldItemValue!), clickLatLng);
+        inventory.removeHeldItem();
+      }
+    });
   }
 
-  updateMarkerIcon(marker: leaflet.Marker, value: string) {
-    const tokenIcon = leaflet.divIcon({
+  onTokenClick(e: leaflet.LeafletMouseEvent) {
+    const coords = coordsFromLatLng(e.latlng, this.origin);
+    console.log("Token clicked ", coords);
+    const tokenMarker = e.target as leaflet.Marker;
+    const cache = this.caches.get(coordsFromLatLng(tokenMarker.getLatLng(), this.origin));
+    const tokenValue = cache?.tokens.get(tokenMarker);
+
+    if (cache === undefined || tokenMarker === undefined || distanceInTiles(tokenMarker.getLatLng(), this.origin) > INTERACTION_RADIUS) {
+      console.log(typeof cache);
+      console.log(typeof tokenValue);
+      console.log("Token out of range");
+      return;
+    }
+
+    if (inventory.holdingItem) {
+      if (inventory.heldItemValue !== tokenValue.toString()) {
+        const temp = inventory.heldItemValue;
+        inventory.holdItem(tokenValue.toString());
+
+        if (temp !== null) {
+          tokenMarker.setIcon(this.getStdMarkerIcon(temp));
+          cache.tokens.set(tokenMarker, parseInt(temp));
+        }
+      } else {
+        inventory.removeHeldItem();
+        tokenMarker.setIcon(this.getStdMarkerIcon((tokenValue * 2).toString()));
+        cache.tokens.set(tokenMarker, tokenValue * 2);
+      }
+    } else if (!inventory.holdingItem) {
+      inventory.holdItem(tokenValue.toString());
+      tokenMarker.remove();
+      cache.tokens.delete(tokenMarker);
+    }
+  }
+
+  getStdMarkerIcon(value: string) {
+    return leaflet.divIcon({
       className: "token",
       html: `<div>${value}</div>`,
       iconSize: [25, 25],
     });
-    marker.setIcon(tokenIcon);
   }
 
-  spawnCache(i: number, j: number, value: number = 1) {
-    this.tokens.push(new Token(i, j, this.obj, value, this.origin));
+  spawnCache(i: number, j: number, startingTokenValue: number) {
+    // Convert cell numbers into lat/lng bounds
+    const bounds = leaflet.latLngBounds([
+      [this.origin.lat + i * TILE_DEGREES, this.origin.lng + j * TILE_DEGREES],
+      [this.origin.lat + (i + 1) * TILE_DEGREES, this.origin.lng + (j + 1) * TILE_DEGREES],
+    ]);
+
+    // Add a rectangle to the map to represent the cache
+    const rect = leaflet.rectangle(bounds);
+    rect.addTo(this.obj);
+
+    const cacheTokens = new Map<leaflet.Marker, number>();
+    const cache: Cache = {
+      posCoord: { i, j },
+      rectangle: rect,
+      tokens: cacheTokens,
+    };
+    this.addCacheToken(cache, startingTokenValue, bounds.getCenter());
+    this.caches.set({ x: i, y: j }, cache);
+
+    console.log("Token clicked ", coordsFromLatLng(bounds.getCenter(), this.origin));
+  }
+
+  addCacheToken(cache: Cache, value: number, posLatLng: leaflet.LatLng) {
+    if (cache) {
+      const tokenMarker = leaflet.marker(posLatLng);
+      tokenMarker.setIcon(this.getStdMarkerIcon(value.toString()));
+      tokenMarker.addTo(this.obj);
+
+      cache.tokens.set(tokenMarker, value);
+      tokenMarker.on("click", (e: leaflet.LeafletMouseEvent) => {
+        this.onTokenClick(e);
+      });
+    }
   }
 }
 
@@ -171,6 +271,18 @@ class Inventory {
   }
 }
 
+class Player {
+  posLatLng: leaflet.LatLng;
+  marker: leaflet.Marker;
+
+  constructor(poslatlng: leaflet.LatLng, map: leaflet.Map) {
+    this.posLatLng = poslatlng;
+    this.marker = leaflet.marker(poslatlng);
+    this.marker.bindTooltip("That's you!");
+    this.marker.addTo(map);
+  }
+}
+
 // ************************************************
 // *************** UTILITY FUNCTIONS ***************
 // ************************************************
@@ -182,19 +294,34 @@ function randInt(min: number, max: number): number {
   return min + Math.floor(r * range);
 }
 
+// Utility: function that computes the coords of a lat/lng point relative to an origin with units of size TILE_DEGREES
+function coordsFromLatLng(latlng: leaflet.LatLng, origin: leaflet.LatLng): Coord {
+  const latDiff = latlng.lat - origin.lat;
+  const lngDiff = latlng.lng - origin.lng;
+  return {
+    x: Math.floor(latDiff / TILE_DEGREES),
+    y: Math.floor(lngDiff / TILE_DEGREES),
+  };
+}
+
+// Utility: function that computes the distance between two lat/lng points in degrees
+function distanceInTiles(a: leaflet.LatLng, b: leaflet.LatLng): number {
+  const latDiff = b.lat - a.lat;
+  const lngDiff = b.lng - a.lng;
+  return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+}
+
 // ************************************************
 // *************** UI ELEMENTS *********************
 // ************************************************
 
 // Create the map centered on the classroom
-const map = new Map(CLASSROOM_LATLNG, GAMEPLAY_ZOOM_LEVEL);
+const map = new LeafletMap(CLASSROOM_LATLNG, GAMEPLAY_ZOOM_LEVEL);
 
 const inventory = new Inventory();
 
-// Add a marker to represent the player
-const playerMarker = leaflet.marker(CLASSROOM_LATLNG);
-playerMarker.bindTooltip("That's you!");
-playerMarker.addTo(map.obj);
+// create a player object which will add a marker to represent the player
+const _player = new Player(CLASSROOM_LATLNG, map.obj);
 
 // ************************************************
 // *************** MAIN PROGRAM ********************
