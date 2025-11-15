@@ -38,7 +38,7 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 - Each cache holds a map which maps latlng positions to token values so that I can effectively hold tokens per cache as well as their exact location
 
-## D3.b: Fill in once I get here
+## D3.b: Globe Spanning Gameplay (Gameplay more rooted to globe)
 
 - [x] center victory message at the top of the screen
 - [x] add div element buttons in the bottom middle of the screen under the map that would allow for cardinal movement
@@ -48,3 +48,9 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] check for new areas of the map that appear when the player scrolls the camera around spawn new caches there
 - [x] have the cells forget their status when outside of player view by either deleting their map of tokens or deleting the cache and spawning it again since cache location is deterministic
 - [x] change victory condition to 64
+
+## D3.c Object Persistence
+
+- [ ] create a new "CachedCaches" map in the greater game map object that will assign tile coordinates to another map object that assigns LatLng positions to token values.
+- [ ] have "removeOutOfBoundsCaches" stow them in that map, if a cache doesn't have any tokens then store null
+- [ ] have "spawnCachesInBounds" check "CachedCaches" to see if it can bring any caches back, remove the element in "Cached Caches" if it does
