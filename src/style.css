@@ -24,14 +24,14 @@
   align-items: center;
   gap: 0.2rem;
   background-color: rgba(255, 255, 255, 0.8);
-  padding: 0.1rem 1rem;
+  padding: 0 1rem;
   border: 2px solid black;
   font-size: 1rem;
   font-weight: bold;
 }
 
 #win-status {
-  padding: 1rem 2rem;
+  padding: 0.5rem 0rem;
   text-align: center;
   border: 3px solid black;
   font-size: 1.5rem;
@@ -56,5 +56,5 @@
 
 #map {
   width: 100%;
-  height: 80vh;
+  height: 70vh;
 }

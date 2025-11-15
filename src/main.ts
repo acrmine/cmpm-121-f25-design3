@@ -21,14 +21,16 @@ const CLASSROOM_LATLNG = leaflet.latLng(
   -122.05703507501151,
 );
 
+// Centering coordinates on latitude 0 and longitude 0
+const COORD_ORIGIN = leaflet.latLng(0, 0);
+
 // Tunable gameplay parameters
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
-const NEIGHBORHOOD_SIZE = 8;
 const CACHE_SPAWN_PROBABILITY = 0.1;
 const INTERACTION_RADIUS = 0.0003; // 3 times TILE_DEGREES
 
-const VICTORY_CONDITION = 16;
+const VICTORY_CONDITION = 64;
 
 // ************************************************
 // *************** CLASSES AND TYPES ***************
@@ -52,8 +54,8 @@ class LeafletMap {
 
   winStatus: HTMLDivElement;
 
-  constructor(center: leaflet.LatLng, zoom: number) {
-    this.origin = center;
+  constructor(startingFocus: leaflet.LatLng, zoom: number, coordOrigin: leaflet.LatLng) {
+    this.origin = coordOrigin;
     this.winStatus = this.createVictoryStatus();
 
     const mapDiv = document.createElement("div");
@@ -61,7 +63,7 @@ class LeafletMap {
     document.body.append(mapDiv);
 
     this.obj = leaflet.map(mapDiv, {
-      center: center,
+      center: startingFocus,
       zoom: zoom,
       minZoom: zoom,
       maxZoom: zoom,
@@ -75,10 +77,12 @@ class LeafletMap {
       attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(this.obj);
 
+    this.spawnCachesInBounds(this.obj.getBounds());
+
     // Handle clicks on the map
     this.obj.on("click", (e: leaflet.LeafletMouseEvent) => {
       const clickLatLng = e.latlng;
-      const clickCoord = coordsFromLatLng(clickLatLng, this.origin);
+      const clickCoord = coordsFromLatLng(clickLatLng);
       const cache = this.getCacheAtCoord(clickCoord);
       if (!cache || distanceInDegrees(clickLatLng, player.posLatLng) > INTERACTION_RADIUS) {
         return;
@@ -88,19 +92,18 @@ class LeafletMap {
         inventory.removeHeldItem();
       }
     });
-  }
 
-  getCacheAtCoord(coord: Coord): Cache | undefined {
-    return this.caches.get(`${coord.x},${coord.y}`);
-  }
-
-  setCacheAtCoord(coord: Coord, cache: Cache) {
-    this.caches.set(`${coord.x},${coord.y}`, cache);
+    // Handle map movements to spawn/remove caches
+    this.obj.on("moveend", () => {
+      const bounds = this.obj.getBounds();
+      this.removeOutOfBoundsCaches(bounds);
+      this.spawnCachesInBounds(bounds);
+    });
   }
 
   onTokenClick(e: leaflet.LeafletMouseEvent) {
     const tokenMarker = e.target as leaflet.Marker;
-    const cache = this.getCacheAtCoord(coordsFromLatLng(tokenMarker.getLatLng(), this.origin));
+    const cache = this.getCacheAtCoord(coordsFromLatLng(tokenMarker.getLatLng()));
     const tokenValue = cache?.tokens.get(tokenMarker);
 
     if (
@@ -135,6 +138,14 @@ class LeafletMap {
     if (inventory.heldItemValue === VICTORY_CONDITION.toString()) {
       this.winStatus.innerText = `You Got a ${VICTORY_CONDITION} Token! You Win!`;
     }
+  }
+
+  getCacheAtCoord(coord: Coord): Cache | undefined {
+    return this.caches.get(`${coord.x},${coord.y}`);
+  }
+
+  setCacheAtCoord(coord: Coord, cache: Cache) {
+    this.caches.set(`${coord.x},${coord.y}`, cache);
   }
 
   getStdMarkerIcon(value: string) {
@@ -186,6 +197,34 @@ class LeafletMap {
         this.onTokenClick(e);
       });
     }
+  }
+
+  spawnCachesInBounds(bounds: leaflet.LatLngBounds) {
+    const bottomLeftCoord = coordsFromLatLng(bounds.getSouthWest());
+    const topRightCoord = coordsFromLatLng(bounds.getNorthEast());
+
+    for (let i = bottomLeftCoord.x - 1; i <= topRightCoord.x + 1; i++) {
+      for (let j = bottomLeftCoord.y - 1; j <= topRightCoord.y + 1; j++) {
+        if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
+          if (this.getCacheAtCoord({ x: i, y: j }) === undefined) {
+            this.spawnCache(i, j, Math.pow(2, randInt(-1, 3)));
+          }
+        }
+      }
+    }
+  }
+
+  removeOutOfBoundsCaches(bounds: leaflet.LatLngBounds) {
+    this.caches.forEach((cache: Cache, key: string) => {
+      const cacheBounds = cache.rectangle.getBounds();
+      if (!bounds.intersects(cacheBounds)) {
+        cache.rectangle.remove();
+        cache.tokens.forEach((_, marker: leaflet.Marker) => {
+          marker.remove();
+        });
+        this.caches.delete(key);
+      }
+    });
   }
 }
 
@@ -328,10 +367,10 @@ function randInt(min: number, max: number): number {
   return min + Math.floor(r * range);
 }
 
-// Utility: function that computes the coords of a lat/lng point relative to an origin with units of size TILE_DEGREES
-function coordsFromLatLng(latlng: leaflet.LatLng, origin: leaflet.LatLng): Coord {
-  const latDiff = latlng.lat - origin.lat;
-  const lngDiff = latlng.lng - origin.lng;
+// Utility: function that computes the coords of a lat/lng point relative to COORD_ORIGIN with units of size TILE_DEGREES
+function coordsFromLatLng(latlng: leaflet.LatLng): Coord {
+  const latDiff = latlng.lat - COORD_ORIGIN.lat;
+  const lngDiff = latlng.lng - COORD_ORIGIN.lng;
   return {
     x: Math.floor(latDiff / TILE_DEGREES),
     y: Math.floor(lngDiff / TILE_DEGREES),
@@ -354,28 +393,14 @@ function _printMapContents(map: Map<Coord, Cache>) {
 }
 
 // ************************************************
-// *************** UI ELEMENTS *********************
+// *************** MAIN PROGRAM ********************
 // ************************************************
 
 // Create the map centered on the classroom
-const map = new LeafletMap(CLASSROOM_LATLNG, GAMEPLAY_ZOOM_LEVEL);
+const map = new LeafletMap(CLASSROOM_LATLNG, GAMEPLAY_ZOOM_LEVEL, COORD_ORIGIN);
 
 const inventory = new Inventory();
 
 // create a player object which will add a marker to represent the player
 const player = new Player(CLASSROOM_LATLNG, map.obj);
 player.createMvmntButtons();
-
-// ************************************************
-// *************** MAIN PROGRAM ********************
-// ************************************************
-
-// Look around the player's neighborhood for caches to spawn
-for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
-  for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
-    // If location i,j is lucky enough, spawn a cache!
-    if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
-      map.spawnCache(i, j, Math.pow(2, randInt(-1, 3)));
-    }
-  }
-}

@@ -43,8 +43,8 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] center victory message at the top of the screen
 - [x] add div element buttons in the bottom middle of the screen under the map that would allow for cardinal movement
 - [x] connect those buttons to the player so that each one moves you one tile in the given directions
-- [ ] change map coordinates origin to zero lat and zero long at null island
-- [ ] change cache spawning to occur in a space as big as the current zoom of the screen
-- [ ] check for new areas of the map that appear when the player scrolls the camera around spawn new caches there
-- [ ] have the cells forget their status when outside of player view by either deleting their map of tokens or deleting the cache and spawning it again since cache location is deterministic
-- [ ] change victory condition to 64
+- [x] change map coordinates origin to zero lat and zero long at null island
+- [x] change cache spawning to occur in a space as big as the current zoom of the screen
+- [x] check for new areas of the map that appear when the player scrolls the camera around spawn new caches there
+- [x] have the cells forget their status when outside of player view by either deleting their map of tokens or deleting the cache and spawning it again since cache location is deterministic
+- [x] change victory condition to 64
