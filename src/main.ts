@@ -28,6 +28,8 @@ const NEIGHBORHOOD_SIZE = 8;
 const CACHE_SPAWN_PROBABILITY = 0.1;
 const INTERACTION_RADIUS = 0.0003; // 3 times TILE_DEGREES
 
+const VICTORY_CONDITION = 16;
+
 // ************************************************
 // *************** CLASSES AND TYPES ***************
 // ************************************************
@@ -43,72 +45,16 @@ interface Cache {
   tokens: Map<leaflet.Marker, number>;
 }
 
-// class _TokenBad {
-//   posLatLng: leaflet.LatLng;
-//   value: number;
-//   containingMap: leaflet.Map;
-//   marker: leaflet.Marker | null = null;
-
-//   constructor(x: number, y: number, map: leaflet.Map, value: number = 1, origin: leaflet.LatLng = CLASSROOM_LATLNG) {
-//     this.value = value;
-//     this.containingMap = map;
-
-//     const bounds = leaflet.latLngBounds([
-//       [origin.lat + x * TILE_DEGREES, origin.lng + y * TILE_DEGREES],
-//       [
-//         origin.lat + (x + 1) * TILE_DEGREES,
-//         origin.lng + (y + 1) * TILE_DEGREES,
-//       ],
-//     ]);
-//     this.posLatLng = bounds.getCenter();
-
-//     this.marker = leaflet.marker(bounds.getCenter(), { icon: this.getStdMarkerIcon(value.toString()) });
-//     this.marker.addTo(map);
-
-//     this.marker.on("click", () => {
-//       this.onTokenClick();
-//     });
-//   }
-
-//   getStdMarkerIcon(value: string) {
-//     const tokenIcon = leaflet.divIcon({
-//       className: "token",
-//       html: `<div>${value}</div>`,
-//       iconSize: [25, 25],
-//     });
-//     return tokenIcon;
-//   }
-
-//   onTokenClick() {
-//     if (inventory.holdingItem) {
-//       if (inventory.heldItemValue !== this.value.toString()) {
-//         const temp = inventory.heldItemValue;
-//         inventory.holdItem(this.value.toString());
-
-//         if (temp !== null) {
-//           this.marker!.setIcon(this.getStdMarkerIcon(temp));
-//           this.value = parseInt(temp);
-//         }
-//       } else {
-//         inventory.removeHeldItem();
-//         this.marker!.setIcon(this.getStdMarkerIcon((this.value * 2).toString()));
-//         this.value *= 2;
-//       }
-//     } else if (!inventory.holdingItem) {
-//       inventory.holdItem(this.value.toString());
-//       this.marker!.remove();
-//       this.marker = null;
-//     }
-//   }
-// }
-
 class LeafletMap {
   obj: leaflet.Map;
   origin: leaflet.LatLng;
   caches: Map<string, Cache> = new Map();
 
+  winStatus: HTMLDivElement;
+
   constructor(center: leaflet.LatLng, zoom: number) {
     this.origin = center;
+    this.winStatus = this.createVictoryStatus();
 
     const mapDiv = document.createElement("div");
     mapDiv.id = "map";
@@ -180,6 +126,11 @@ class LeafletMap {
       tokenMarker.remove();
       cache.tokens.delete(tokenMarker);
     }
+
+    // Check for victory condition
+    if (inventory.heldItemValue === VICTORY_CONDITION.toString()) {
+      this.winStatus.innerText = `Congratulations! You Got a ${VICTORY_CONDITION} Token!`;
+    }
   }
 
   getStdMarkerIcon(value: string) {
@@ -188,6 +139,15 @@ class LeafletMap {
       html: `<div>${value}</div>`,
       iconSize: [25, 25],
     });
+  }
+
+  createVictoryStatus() {
+    const winStatus = document.createElement("div");
+    winStatus.id = "win-status";
+    winStatus.innerText = `Goal: get a token of value ${VICTORY_CONDITION}`;
+    document.body.appendChild(winStatus);
+
+    return winStatus;
   }
 
   spawnCache(i: number, j: number, startingTokenValue: number) {
@@ -212,7 +172,7 @@ class LeafletMap {
   }
 
   addCacheToken(cache: Cache, value: number, posLatLng: leaflet.LatLng) {
-    if (cache) {
+    if (cache && value >= 1) {
       const tokenMarker = leaflet.marker(posLatLng);
       tokenMarker.setIcon(this.getStdMarkerIcon(value.toString()));
       tokenMarker.addTo(this.obj);
@@ -339,7 +299,7 @@ for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
   for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
     // If location i,j is lucky enough, spawn a cache!
     if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
-      map.spawnCache(i, j, Math.pow(2, randInt(0, 3)));
+      map.spawnCache(i, j, Math.pow(2, randInt(-1, 3)));
     }
   }
 }

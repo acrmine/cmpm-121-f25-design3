@@ -32,6 +32,7 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] allow tokens to be placed back down again when you click on an empty cell
 - [x] if token is placed on another token with equal value, combine them
 - [x] if a token is placed on an unequal token cell, put down your current token and pick up the cell token
+- [x] Add a victory message that activates when you hold a token of value 16
 
 ### Switching direction plan
 

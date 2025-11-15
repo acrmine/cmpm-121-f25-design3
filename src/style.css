@@ -18,6 +18,14 @@
   font-weight: bold;
 }
 
+#win-status {
+  padding: 1rem 2rem;
+  border: 3px solid black;
+  font-size: 1.5rem;
+  font-weight: bold;
+  z-index: 1000;
+}
+
 .token {
   display: flex;
   justify-content: center;
