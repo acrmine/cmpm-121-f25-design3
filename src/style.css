@@ -1,14 +1,26 @@
-#controlPanel {
-  padding: 1rem;
+.centered-horizontal {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-#statusPanel {
-  padding: 1rem;
+.mvmntBtns {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+
+.mvmntBtns-upDown {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 #inventory {
   display: inline-flex;
   flex-direction: row;
+  justify-content: center;
   align-items: center;
   gap: 0.2rem;
   background-color: rgba(255, 255, 255, 0.8);
@@ -20,6 +32,7 @@
 
 #win-status {
   padding: 1rem 2rem;
+  text-align: center;
   border: 3px solid black;
   font-size: 1.5rem;
   font-weight: bold;

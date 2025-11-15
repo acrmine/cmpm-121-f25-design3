@@ -80,7 +80,7 @@ class LeafletMap {
       const clickLatLng = e.latlng;
       const clickCoord = coordsFromLatLng(clickLatLng, this.origin);
       const cache = this.getCacheAtCoord(clickCoord);
-      if (!cache || distanceInDegrees(clickLatLng, this.origin) > INTERACTION_RADIUS) {
+      if (!cache || distanceInDegrees(clickLatLng, player.posLatLng) > INTERACTION_RADIUS) {
         return;
       }
       if (inventory.holdingItem) {
@@ -103,7 +103,11 @@ class LeafletMap {
     const cache = this.getCacheAtCoord(coordsFromLatLng(tokenMarker.getLatLng(), this.origin));
     const tokenValue = cache?.tokens.get(tokenMarker);
 
-    if (cache === undefined || tokenValue === undefined || distanceInDegrees(tokenMarker.getLatLng(), this.origin) > INTERACTION_RADIUS) {
+    if (
+      cache === undefined ||
+      tokenValue === undefined ||
+      distanceInDegrees(tokenMarker.getLatLng(), player.posLatLng) > INTERACTION_RADIUS
+    ) {
       return;
     }
 
@@ -129,7 +133,7 @@ class LeafletMap {
 
     // Check for victory condition
     if (inventory.heldItemValue === VICTORY_CONDITION.toString()) {
-      this.winStatus.innerText = `Congratulations! You Got a ${VICTORY_CONDITION} Token!`;
+      this.winStatus.innerText = `You Got a ${VICTORY_CONDITION} Token! You Win!`;
     }
   }
 
@@ -188,19 +192,25 @@ class LeafletMap {
 class Inventory {
   currItem: HTMLDivElement | null;
   invCont: HTMLDivElement;
+  elemCont: HTMLDivElement;
   invHeader: HTMLHeadingElement;
 
   headerText: string = "Held Item:";
 
   constructor() {
     this.currItem = null;
+
     this.invCont = document.createElement("div");
-    this.invCont.id = "inventory";
+    this.invCont.classList.add("centered-horizontal");
     document.body.appendChild(this.invCont);
+
+    this.elemCont = document.createElement("div");
+    this.elemCont.id = "inventory";
+    this.invCont.appendChild(this.elemCont);
 
     this.invHeader = document.createElement("h3");
     this.invHeader.innerText = this.headerText;
-    this.invCont.appendChild(this.invHeader);
+    this.elemCont.appendChild(this.invHeader);
   }
 
   get holdingItem(): boolean {
@@ -225,7 +235,7 @@ class Inventory {
       this.currItem = document.createElement("div");
       this.currItem.className = "token";
       this.currItem.innerText = value;
-      this.invCont.appendChild(this.currItem);
+      this.elemCont.appendChild(this.currItem);
     }
   }
 }
@@ -235,10 +245,75 @@ class Player {
   marker: leaflet.Marker;
 
   constructor(poslatlng: leaflet.LatLng, map: leaflet.Map) {
-    this.posLatLng = poslatlng;
+    this.posLatLng = poslatlng.clone();
     this.marker = leaflet.marker(poslatlng);
     this.marker.bindTooltip("That's you!");
     this.marker.addTo(map);
+  }
+
+  createMvmntButtons() {
+    const leftRightPadding = "0 1rem";
+    const upDownPadding = "0.5rem 1.2rem";
+
+    // greater movement button container
+    const mvmntBtnCont = document.createElement("div");
+    mvmntBtnCont.classList.add("mvmntBtns");
+    document.body.appendChild(mvmntBtnCont);
+
+    const leftBtn = document.createElement("button");
+    leftBtn.innerText = "←";
+    leftBtn.style.padding = leftRightPadding;
+    mvmntBtnCont.appendChild(leftBtn);
+    leftBtn.onclick = () => {
+      this.moveByTile("left");
+    };
+
+    // button that contains up and down buttons in the same spot
+    const upDownBtnCont = document.createElement("div");
+    upDownBtnCont.classList.add("mvmntBtns-upDown");
+    mvmntBtnCont.appendChild(upDownBtnCont);
+
+    const upBtn = document.createElement("button");
+    upBtn.innerText = "↑";
+    upBtn.style.padding = upDownPadding;
+    upDownBtnCont.appendChild(upBtn);
+    upBtn.onclick = () => {
+      this.moveByTile("up");
+    };
+
+    const downBtn = document.createElement("button");
+    downBtn.innerText = "↓";
+    downBtn.style.padding = upDownPadding;
+    upDownBtnCont.appendChild(downBtn);
+    downBtn.onclick = () => {
+      this.moveByTile("down");
+    };
+
+    const rightBtn = document.createElement("button");
+    rightBtn.innerText = "→";
+    rightBtn.style.padding = leftRightPadding;
+    mvmntBtnCont.appendChild(rightBtn);
+    rightBtn.onclick = () => {
+      this.moveByTile("right");
+    };
+  }
+
+  moveByTile(direction: "up" | "down" | "left" | "right") {
+    switch (direction) {
+      case "up":
+        this.posLatLng.lat += TILE_DEGREES;
+        break;
+      case "down":
+        this.posLatLng.lat -= TILE_DEGREES;
+        break;
+      case "left":
+        this.posLatLng.lng -= TILE_DEGREES;
+        break;
+      case "right":
+        this.posLatLng.lng += TILE_DEGREES;
+        break;
+    }
+    this.marker.setLatLng(this.posLatLng);
   }
 }
 
@@ -288,7 +363,8 @@ const map = new LeafletMap(CLASSROOM_LATLNG, GAMEPLAY_ZOOM_LEVEL);
 const inventory = new Inventory();
 
 // create a player object which will add a marker to represent the player
-const _player = new Player(CLASSROOM_LATLNG, map.obj);
+const player = new Player(CLASSROOM_LATLNG, map.obj);
+player.createMvmntButtons();
 
 // ************************************************
 // *************** MAIN PROGRAM ********************

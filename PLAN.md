@@ -39,3 +39,12 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - Each cache holds a map which maps latlng positions to token values so that I can effectively hold tokens per cache as well as their exact location
 
 ## D3.b: Fill in once I get here
+
+- [x] center victory message at the top of the screen
+- [x] add div element buttons in the bottom middle of the screen under the map that would allow for cardinal movement
+- [x] connect those buttons to the player so that each one moves you one tile in the given directions
+- [ ] change map coordinates origin to zero lat and zero long at null island
+- [ ] change cache spawning to occur in a space as big as the current zoom of the screen
+- [ ] check for new areas of the map that appear when the player scrolls the camera around spawn new caches there
+- [ ] have the cells forget their status when outside of player view by either deleting their map of tokens or deleting the cache and spawning it again since cache location is deterministic
+- [ ] change victory condition to 64
