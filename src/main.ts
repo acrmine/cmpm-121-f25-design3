@@ -176,24 +176,31 @@ class LeafletMap {
   }
 
   spawnCache(i: number, j: number, startingTokenValue: number) {
-    // Convert cell numbers into lat/lng bounds
-    const bounds = leaflet.latLngBounds([
-      [this.origin.lat + i * TILE_DEGREES, this.origin.lng + j * TILE_DEGREES],
-      [this.origin.lat + (i + 1) * TILE_DEGREES, this.origin.lng + (j + 1) * TILE_DEGREES],
-    ]);
+    if (this.getCacheAtCoord({ x: i, y: j }) === undefined) {
+      // Convert cell numbers into lat/lng bounds
+      const bounds = leaflet.latLngBounds([
+        [this.origin.lat + i * TILE_DEGREES, this.origin.lng + j * TILE_DEGREES],
+        [this.origin.lat + (i + 1) * TILE_DEGREES, this.origin.lng + (j + 1) * TILE_DEGREES],
+      ]);
 
-    // Add a rectangle to the map to represent the cache
-    const rect = leaflet.rectangle(bounds);
-    rect.addTo(this.obj);
+      // Add a rectangle to the map to represent the cache
+      const rect = leaflet.rectangle(bounds);
+      rect.addTo(this.obj);
 
-    const cacheTokens = new Map<leaflet.Marker, number>();
-    const cache: Cache = {
-      posCoord: { i, j },
-      rectangle: rect,
-      tokens: cacheTokens,
-    };
-    this.addCacheToken(cache, startingTokenValue, bounds.getCenter());
-    this.setCacheAtCoord({ x: i, y: j }, cache);
+      const cacheTokens = new Map<leaflet.Marker, number>();
+      const cache: Cache = {
+        posCoord: { i, j },
+        rectangle: rect,
+        tokens: cacheTokens,
+      };
+
+      // const stowedCache = this.getStowedCache({ x: i, y: j });
+      // if (stowedCache !== undefined) {
+
+      // }
+      this.addCacheToken(cache, startingTokenValue, bounds.getCenter());
+      this.setCacheAtCoord({ x: i, y: j }, cache);
+    }
   }
 
   deleteCache(cache: Cache) {
@@ -252,14 +259,10 @@ class LeafletMap {
   }
 
   removeOutOfBoundsCaches(bounds: leaflet.LatLngBounds) {
-    this.caches.forEach((cache: Cache, key: string) => {
+    this.caches.forEach((cache: Cache, _key: string) => {
       const cacheBounds = cache.rectangle.getBounds();
       if (!bounds.intersects(cacheBounds)) {
-        cache.rectangle.remove();
-        cache.tokens.forEach((_, marker: leaflet.Marker) => {
-          marker.remove();
-        });
-        this.caches.delete(key);
+        this.stowCache(cache);
       }
     });
   }
