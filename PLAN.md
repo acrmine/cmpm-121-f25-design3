@@ -56,5 +56,5 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] create a "stowCache" function which stores a cache in CachedCaches and then uses "deleteCache" on it
 - [x] create a "getStowedCache" function which will take coordinate pairs and check if a cache has been stored in that spot, returrn the map/null if it has and undefined if it hasn't. Should delete the cached cache afterwards if it finds it
 - [x] have "removeOutOfBoundsCaches" use "stowCache" when deleting caches instead, if a cache doesn't have any tokens then store null
-- [ ] refactor "spawnCache" to check if the spot it needs to spawn a cache on already has one or not. Take the if statements that do that in "spawnCachesInBounds" out
-- [ ] have "spawnCache" use getStowedCache to check if pre-existing token information exists when it's trying to spawn a cache. If it does, then spawn those tokens instead of the one random one in the center
+- [x] refactor "spawnCache" to check if the spot it needs to spawn a cache on already has one or not. Take the if statements that do that in "spawnCachesInBounds" out
+- [x] have "spawnCache" use getStowedCache to check if pre-existing token information exists when it's trying to spawn a cache. If it does, then spawn those tokens instead of the one random one in the center

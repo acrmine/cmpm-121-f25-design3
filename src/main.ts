@@ -194,11 +194,16 @@ class LeafletMap {
         tokens: cacheTokens,
       };
 
-      // const stowedCache = this.getStowedCache({ x: i, y: j });
-      // if (stowedCache !== undefined) {
-
-      // }
-      this.addCacheToken(cache, startingTokenValue, bounds.getCenter());
+      const stowedCache = this.getStowedCache({ x: i, y: j });
+      if (stowedCache !== undefined) {
+        if (stowedCache !== null) {
+          stowedCache.forEach((value: number, posLatLng: leaflet.LatLng) => {
+            this.addCacheToken(cache, value, posLatLng);
+          });
+        }
+      } else {
+        this.addCacheToken(cache, startingTokenValue, bounds.getCenter());
+      }
       this.setCacheAtCoord({ x: i, y: j }, cache);
     }
   }
