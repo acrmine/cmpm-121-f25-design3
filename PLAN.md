@@ -58,3 +58,10 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] have "removeOutOfBoundsCaches" use "stowCache" when deleting caches instead, if a cache doesn't have any tokens then store null
 - [x] refactor "spawnCache" to check if the spot it needs to spawn a cache on already has one or not. Take the if statements that do that in "spawnCachesInBounds" out
 - [x] have "spawnCache" use getStowedCache to check if pre-existing token information exists when it's trying to spawn a cache. If it does, then spawn those tokens instead of the one random one in the center
+
+## D3.d Real World Use
+
+- [ ] add a toggle box on the left side of the inventory for toggling camera focus on the player during movement and another on the right side which toggles movement based on gps location
+- [ ] add functionality to both buttons for there respective purposes
+- [ ] use localStorage api to save state between accesses of the website, should stow every currently active cache and then save the cachedCaches map as well as the player location and held item if there is one
+- [ ] add a reset game button to top right corner, should ask for confirmation before erasing all data, goal should now be just on the top left of the screen
