@@ -51,6 +51,7 @@ class LeafletMap {
   obj: leaflet.Map;
   origin: leaflet.LatLng;
   caches: Map<string, Cache> = new Map();
+  cachedCaches: Map<string, Map<leaflet.LatLng, number> | null> = new Map();
 
   winStatus: HTMLDivElement;
 

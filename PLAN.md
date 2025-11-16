@@ -51,6 +51,9 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 ## D3.c Object Persistence
 
-- [ ] create a new "CachedCaches" map in the greater game map object that will assign tile coordinates to another map object that assigns LatLng positions to token values.
-- [ ] have "removeOutOfBoundsCaches" stow them in that map, if a cache doesn't have any tokens then store null
-- [ ] have "spawnCachesInBounds" check "CachedCaches" to see if it can bring any caches back, remove the element in "Cached Caches" if it does
+- [x] create a new "CachedCaches" map in the greater game map object that will assign tile coordinates to another map object that assigns LatLng positions to token values.
+- [ ] create a "deleteCache" function that takes caches off the map and removes all references to leave them open for garbage collection. Can take the part in "removeOutOfBoundsCaches" that does that
+- [ ] create a "stowCache" function which stores a cache in CachedCaches and then uses "deleteCache" on it
+- [ ] create a "getStowedCache" function which will take coordinate pairs and check if a cache has been stored in that spot, returrn the map/null if it has and undefined if it hasn't. Should delete the cached cache afterwards if it finds it
+- [ ] have "removeOutOfBoundsCaches" use "stowCache" when deleting caches instead, if a cache doesn't have any tokens then store null
+- [ ] have "spawnCachesInBounds" use "getStowedCache" after checking if the cache is already there. If it finds a stowed cache then spawn the cache and fill it's token array with the map you get from the stowed cache
