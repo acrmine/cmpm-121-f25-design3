@@ -149,6 +149,15 @@ class LeafletMap {
     this.caches.set(`${coord.x},${coord.y}`, cache);
   }
 
+  getStowedCache(coord: Coord): Map<leaflet.LatLng, number> | null | undefined {
+    const key = `${coord.x},${coord.y}`;
+    const cache = this.cachedCaches.get(key);
+    if (cache !== undefined) {
+      this.cachedCaches.delete(key);
+    }
+    return cache;
+  }
+
   getStdMarkerIcon(value: string) {
     return leaflet.divIcon({
       className: "token",
@@ -185,6 +194,33 @@ class LeafletMap {
     };
     this.addCacheToken(cache, startingTokenValue, bounds.getCenter());
     this.setCacheAtCoord({ x: i, y: j }, cache);
+  }
+
+  deleteCache(cache: Cache) {
+    if (cache) {
+      const key = `${cache.posCoord.i},${cache.posCoord.j}`;
+      cache.rectangle.remove();
+      cache.tokens.forEach((_, marker: leaflet.Marker) => {
+        marker.remove();
+      });
+      this.caches.delete(key);
+    }
+  }
+
+  stowCache(cache: Cache) {
+    if (cache) {
+      const key = `${cache.posCoord.i},${cache.posCoord.j}`;
+      if (cache.tokens.size > 0) {
+        const tokenMap = new Map<leaflet.LatLng, number>();
+        cache.tokens.forEach((value: number, marker: leaflet.Marker) => {
+          tokenMap.set(marker.getLatLng(), value);
+        });
+        this.cachedCaches.set(key, tokenMap);
+      } else {
+        this.cachedCaches.set(key, null);
+      }
+      this.deleteCache(cache);
+    }
   }
 
   addCacheToken(cache: Cache, value: number, posLatLng: leaflet.LatLng) {
