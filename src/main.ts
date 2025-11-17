@@ -336,6 +336,19 @@ class Player {
     this.marker = leaflet.marker(poslatlng);
     this.marker.bindTooltip("That's you!");
     this.marker.addTo(map);
+
+    // Set up GPS movement if available
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition((position) => {
+        if (this.moveWithGps) {
+          const newLatLng = leaflet.latLng(
+            position.coords.latitude,
+            position.coords.longitude,
+          );
+          this.setPlayerPos(newLatLng);
+        }
+      });
+    }
   }
 
   createMvmntButtons() {
@@ -405,7 +418,9 @@ class Player {
     playerFocusCont.appendChild(focusLabel);
     focusBtn.addEventListener("click", () => {
       this.centerOnPlayer = focusBtn.checked;
-      console.log("Center on player: ", this.centerOnPlayer);
+      if (this.centerOnPlayer) {
+        map.obj.setView(this.posLatLng);
+      }
     });
 
     const moveWithGpsCont = document.createElement("div");
@@ -419,11 +434,23 @@ class Player {
     moveWithGpsCont.appendChild(gpsLabel);
     gpsBtn.addEventListener("click", () => {
       this.moveWithGps = gpsBtn.checked;
-      console.log("Move with GPS: ", this.moveWithGps);
     });
   }
 
+  setPlayerPos(newLatLng: leaflet.LatLng | undefined = undefined) {
+    if (newLatLng !== undefined) {
+      this.posLatLng = newLatLng.clone();
+    }
+    this.marker.setLatLng(this.posLatLng);
+    if (this.centerOnPlayer) {
+      map.obj.setView(this.posLatLng);
+    }
+  }
+
   moveByTile(direction: "up" | "down" | "left" | "right") {
+    if (this.moveWithGps) {
+      return;
+    }
     switch (direction) {
       case "up":
         this.posLatLng.lat += TILE_DEGREES;
@@ -438,7 +465,7 @@ class Player {
         this.posLatLng.lng += TILE_DEGREES;
         break;
     }
-    this.marker.setLatLng(this.posLatLng);
+    this.setPlayerPos();
   }
 }
 
