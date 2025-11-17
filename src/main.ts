@@ -235,6 +235,42 @@ class LeafletMap {
     }
   }
 
+  cachedCachesToString() {
+    let result = "";
+    this.cachedCaches.forEach((tokenMap: Map<leaflet.LatLng, number> | null, key: string) => {
+      result += `Cache at ${key}:\n`;
+      if (tokenMap !== null) {
+        tokenMap.forEach((value: number, posLatLng: leaflet.LatLng) => {
+          result += `  Token at ${posLatLng}: ${value}\n`;
+        });
+      } else {
+        result += "  No tokens\n";
+      }
+    });
+    return result;
+  }
+
+  stringToCachedCaches(dataStr: string) {
+    const lines = dataStr.split("\n");
+    let currentKey: string | null = null;
+
+    for (const line of lines) {
+      if (line.startsWith("Cache at ")) {
+        currentKey = line.substring(9);
+      } else if (currentKey !== null && line.startsWith("  Token at ")) {
+        const [latStr, lngStr] = line.substring(11).split(": ");
+        const lat = parseFloat(latStr);
+        const lng = parseFloat(lngStr);
+        const value = parseInt(lngStr);
+        if (!isNaN(lat) && !isNaN(lng) && !isNaN(value)) {
+          this.cachedCaches.set(currentKey, new Map([[leaflet.latLng(lat, lng), value]]));
+        }
+      } else if (currentKey !== null && line === "  No tokens") {
+        this.cachedCaches.set(currentKey, null);
+      }
+    }
+  }
+
   addCacheToken(cache: Cache, value: number, posLatLng: leaflet.LatLng) {
     if (cache && value >= 1) {
       const tokenMarker = leaflet.marker(posLatLng);
@@ -518,3 +554,45 @@ const inventory = new Inventory();
 const player = new Player(CLASSROOM_LATLNG, map.obj);
 player.createMvmntButtons();
 player.createSettingsButtons(inventory.invCont);
+
+// Load state (if it exists) from localStorage when the page loads
+globalThis.addEventListener("load", () => {
+  // Load cachedCaches from localStorage
+  const stowedCachedCaches = localStorage.getItem("cachedCaches");
+  if (stowedCachedCaches) {
+    map.stringToCachedCaches(stowedCachedCaches);
+  }
+
+  // Load player position from localStorage
+  const playerPosStr = localStorage.getItem("playerPos");
+  if (playerPosStr) {
+    const [latStr, lngStr] = playerPosStr.split(",");
+    const lat = parseFloat(latStr);
+    const lng = parseFloat(lngStr);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      player.setPlayerPos(leaflet.latLng(lat, lng));
+    }
+  }
+
+  // Load held item from localStorage
+  const heldItemStr = localStorage.getItem("heldItem");
+  if (heldItemStr && heldItemStr !== "") {
+    inventory.holdItem(heldItemStr);
+  }
+});
+
+// Save state to localStorage before closing the page
+globalThis.addEventListener("beforeunload", () => {
+  localStorage.clear();
+
+  // Stow all caches before unloading
+  map.caches.forEach((cache: Cache, _key: string) => {
+    map.stowCache(cache);
+  });
+
+  // Save cachedCaches to localStorage
+  localStorage.setItem("cachedCaches", map.cachedCachesToString());
+
+  localStorage.setItem("playerPos", player.posLatLng.toString());
+  localStorage.setItem("heldItem", inventory.heldItemValue ?? "");
+});
