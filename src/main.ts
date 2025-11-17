@@ -241,7 +241,7 @@ class LeafletMap {
       result += `Cache at ${key}:\n`;
       if (tokenMap !== null) {
         tokenMap.forEach((value: number, posLatLng: leaflet.LatLng) => {
-          result += `  Token at ${posLatLng}: ${value}\n`;
+          result += `  Token at ${posLatLng.toString()}: ${value}\n`;
         });
       } else {
         result += "  No tokens\n";
@@ -258,14 +258,13 @@ class LeafletMap {
       if (line.startsWith("Cache at ")) {
         currentKey = line.substring(9);
       } else if (currentKey !== null && line.startsWith("  Token at ")) {
-        const [latStr, lngStr] = line.substring(11).split(": ");
-        const lat = parseFloat(latStr);
-        const lng = parseFloat(lngStr);
-        const value = parseInt(lngStr);
-        if (!isNaN(lat) && !isNaN(lng) && !isNaN(value)) {
-          this.cachedCaches.set(currentKey, new Map([[leaflet.latLng(lat, lng), value]]));
+        const [posStr, valStr] = line.split(": ");
+        const posLatLng = latLngFromString(posStr);
+        const value = parseInt(valStr);
+        if (!isNaN(posLatLng.lat) && !isNaN(posLatLng.lng) && !isNaN(value)) {
+          this.cachedCaches.set(currentKey, new Map([[posLatLng, value]]));
         }
-      } else if (currentKey !== null && line === "  No tokens") {
+      } else if (currentKey !== null && line === "  No tokens\n") {
         this.cachedCaches.set(currentKey, null);
       }
     }
@@ -533,6 +532,30 @@ function distanceInDegrees(a: leaflet.LatLng, b: leaflet.LatLng): number {
   return Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
 }
 
+// Utility: function that converts toString output of LatLng back into a LatLng object
+function latLngFromString(latlngStr: string): leaflet.LatLng {
+  let startLatLng = 0;
+  let endLatLng = 0;
+  for (let i = 0; i < latlngStr.length; i++) {
+    if (latlngStr[i] === "(") {
+      startLatLng = i + 1;
+    }
+    if (latlngStr[i] === ")") {
+      endLatLng = i;
+    }
+  }
+  latlngStr = latlngStr.substring(startLatLng, endLatLng);
+
+  const [latStr, lngStr] = latlngStr.split(",");
+  const lat = parseFloat(latStr);
+  const lng = parseFloat(lngStr);
+  if (isNaN(lat) || isNaN(lng)) {
+    console.error("Invalid lat/lng string: ", latlngStr);
+    return leaflet.latLng(0, 0);
+  }
+  return leaflet.latLng(lat, lng);
+}
+
 // Utility: function that prints the contents of a map (for debugging)
 function _printMapContents(map: Map<Coord, Cache>) {
   console.log("Map contents:");
@@ -557,24 +580,16 @@ player.createSettingsButtons(inventory.invCont);
 
 // Load state (if it exists) from localStorage when the page loads
 globalThis.addEventListener("load", () => {
-  // Load cachedCaches from localStorage
   const stowedCachedCaches = localStorage.getItem("cachedCaches");
   if (stowedCachedCaches) {
     map.stringToCachedCaches(stowedCachedCaches);
   }
 
-  // Load player position from localStorage
   const playerPosStr = localStorage.getItem("playerPos");
   if (playerPosStr) {
-    const [latStr, lngStr] = playerPosStr.split(",");
-    const lat = parseFloat(latStr);
-    const lng = parseFloat(lngStr);
-    if (!isNaN(lat) && !isNaN(lng)) {
-      player.setPlayerPos(leaflet.latLng(lat, lng));
-    }
+    player.setPlayerPos(latLngFromString(playerPosStr));
   }
 
-  // Load held item from localStorage
   const heldItemStr = localStorage.getItem("heldItem");
   if (heldItemStr && heldItemStr !== "") {
     inventory.holdItem(heldItemStr);
@@ -585,14 +600,11 @@ globalThis.addEventListener("load", () => {
 globalThis.addEventListener("beforeunload", () => {
   localStorage.clear();
 
-  // Stow all caches before unloading
   map.caches.forEach((cache: Cache, _key: string) => {
     map.stowCache(cache);
   });
 
-  // Save cachedCaches to localStorage
   localStorage.setItem("cachedCaches", map.cachedCachesToString());
-
   localStorage.setItem("playerPos", player.posLatLng.toString());
   localStorage.setItem("heldItem", inventory.heldItemValue ?? "");
 });
