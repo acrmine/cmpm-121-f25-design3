@@ -61,7 +61,7 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 ## D3.d Real World Use
 
-- [ ] add a toggle box on the left side of the inventory for toggling camera focus on the player during movement and another on the right side which toggles movement based on gps location
+- [x] add a toggle box on the left side of the inventory for toggling camera focus on the player during movement and another on the right side which toggles movement based on gps location
 - [ ] add functionality to both buttons for there respective purposes
 - [ ] use localStorage api to save state between accesses of the website, should stow every currently active cache and then save the cachedCaches map as well as the player location and held item if there is one
-- [ ] add a reset game button to top right corner, should ask for confirmation before erasing all data, goal should now be just on the top left of the screen
+- [ ] add a reset game button to bottom left next to inventory on the other side

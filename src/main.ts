@@ -328,6 +328,9 @@ class Player {
   posLatLng: leaflet.LatLng;
   marker: leaflet.Marker;
 
+  centerOnPlayer: boolean = false;
+  moveWithGps: boolean = false;
+
   constructor(poslatlng: leaflet.LatLng, map: leaflet.Map) {
     this.posLatLng = poslatlng.clone();
     this.marker = leaflet.marker(poslatlng);
@@ -380,6 +383,44 @@ class Player {
     rightBtn.onclick = () => {
       this.moveByTile("right");
     };
+  }
+
+  createSettingsButtons(containerToAppendTo: HTMLElement) {
+    const settingsCont = document.createElement("div");
+    settingsCont.classList.add("settingsCont");
+    containerToAppendTo.appendChild(settingsCont);
+
+    const settingsHeader = document.createElement("label");
+    settingsHeader.innerHTML = "<strong>Settings</strong>";
+    settingsCont.appendChild(settingsHeader);
+
+    const playerFocusCont = document.createElement("div");
+    settingsCont.appendChild(playerFocusCont);
+
+    const focusBtn = document.createElement("input");
+    focusBtn.type = "checkbox";
+    playerFocusCont.appendChild(focusBtn);
+    const focusLabel = document.createElement("label");
+    focusLabel.innerText = "Center map on player";
+    playerFocusCont.appendChild(focusLabel);
+    focusBtn.addEventListener("click", () => {
+      this.centerOnPlayer = focusBtn.checked;
+      console.log("Center on player: ", this.centerOnPlayer);
+    });
+
+    const moveWithGpsCont = document.createElement("div");
+    settingsCont.appendChild(moveWithGpsCont);
+
+    const gpsBtn = document.createElement("input");
+    gpsBtn.type = "checkbox";
+    moveWithGpsCont.appendChild(gpsBtn);
+    const gpsLabel = document.createElement("label");
+    gpsLabel.innerText = "Move player with GPS";
+    moveWithGpsCont.appendChild(gpsLabel);
+    gpsBtn.addEventListener("click", () => {
+      this.moveWithGps = gpsBtn.checked;
+      console.log("Move with GPS: ", this.moveWithGps);
+    });
   }
 
   moveByTile(direction: "up" | "down" | "left" | "right") {
@@ -449,3 +490,4 @@ const inventory = new Inventory();
 // create a player object which will add a marker to represent the player
 const player = new Player(CLASSROOM_LATLNG, map.obj);
 player.createMvmntButtons();
+player.createSettingsButtons(inventory.invCont);
