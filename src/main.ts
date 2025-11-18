@@ -78,6 +78,7 @@ class LeafletMap {
       attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(this.obj);
 
+    this.loadFromStorage();
     this.spawnCachesInBounds(this.obj.getBounds());
 
     // Handle clicks on the map
@@ -100,6 +101,13 @@ class LeafletMap {
       this.removeOutOfBoundsCaches(bounds);
       this.spawnCachesInBounds(bounds);
     });
+  }
+
+  loadFromStorage() {
+    const stowedCachedCaches = localStorage.getItem("cachedCaches");
+    if (stowedCachedCaches) {
+      this.stringToCachedCaches(stowedCachedCaches);
+    }
   }
 
   onTokenClick(e: leaflet.LeafletMouseEvent) {
@@ -238,7 +246,7 @@ class LeafletMap {
   cachedCachesToString() {
     let result = "";
     this.cachedCaches.forEach((tokenMap: Map<leaflet.LatLng, number> | null, key: string) => {
-      result += `Cache at ${key}:\n`;
+      result += `Cache at (${key}):\n`;
       if (tokenMap !== null) {
         tokenMap.forEach((value: number, posLatLng: leaflet.LatLng) => {
           result += `  Token at ${posLatLng.toString()}: ${value}\n`;
@@ -254,18 +262,43 @@ class LeafletMap {
     const lines = dataStr.split("\n");
     let currentKey: string | null = null;
 
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      const line = rawLine; // keep original spacing for some parsing, use trimmed when helpful
       if (line.startsWith("Cache at ")) {
-        currentKey = line.substring(9);
-      } else if (currentKey !== null && line.startsWith("  Token at ")) {
-        const [posStr, valStr] = line.split(": ");
-        const posLatLng = latLngFromString(posStr);
-        const value = parseInt(valStr);
-        if (!isNaN(posLatLng.lat) && !isNaN(posLatLng.lng) && !isNaN(value)) {
-          this.cachedCaches.set(currentKey, new Map([[posLatLng, value]]));
+        currentKey = substringBetween(line, "()");
+      } else if (currentKey !== null) {
+        const trimmed = line.trim();
+        if (trimmed === "") {
+          continue;
         }
-      } else if (currentKey !== null && line === "  No tokens\n") {
-        this.cachedCaches.set(currentKey, null);
+
+        if (trimmed === "No tokens") {
+          this.cachedCaches.set(currentKey, null);
+          continue;
+        }
+
+        if (trimmed.startsWith("Token at ")) {
+          // trimmed looks like: "Token at (lat, lng): <value>"
+          const idx = trimmed.lastIndexOf(": ");
+          if (idx === -1) {
+            continue;
+          }
+          const posPart = trimmed.substring("Token at ".length, idx);
+          const valPart = trimmed.substring(idx + 2);
+          const posLatLng = latLngFromString(posPart);
+          const value = parseInt(valPart);
+          if (!isNaN(posLatLng.lat) && !isNaN(posLatLng.lng) && !isNaN(value)) {
+            const existing = this.cachedCaches.get(currentKey);
+            if (existing === undefined || existing === null) {
+              const m = new Map<leaflet.LatLng, number>();
+              m.set(posLatLng, value);
+              this.cachedCaches.set(currentKey, m);
+            } else {
+              existing.set(posLatLng, value);
+              this.cachedCaches.set(currentKey, existing);
+            }
+          }
+        }
       }
     }
   }
@@ -290,9 +323,7 @@ class LeafletMap {
     for (let i = bottomLeftCoord.x - 1; i <= topRightCoord.x + 1; i++) {
       for (let j = bottomLeftCoord.y - 1; j <= topRightCoord.y + 1; j++) {
         if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
-          if (this.getCacheAtCoord({ x: i, y: j }) === undefined) {
-            this.spawnCache(i, j, Math.pow(2, randInt(-1, 3)));
-          }
+          this.spawnCache(i, j, Math.pow(2, randInt(-1, 3)));
         }
       }
     }
@@ -305,6 +336,17 @@ class LeafletMap {
         this.stowCache(cache);
       }
     });
+  }
+
+  resetGame() {
+    this.caches.forEach((cache: Cache, _key: string) => {
+      this.deleteCache(cache);
+    });
+    this.cachedCaches.clear();
+    this.winStatus.innerText = `Goal: get a token of value ${VICTORY_CONDITION}`;
+    inventory.removeHeldItem();
+    player.setPlayerPos(CLASSROOM_LATLNG);
+    this.spawnCachesInBounds(this.obj.getBounds());
   }
 }
 
@@ -330,6 +372,11 @@ class Inventory {
     this.invHeader = document.createElement("h3");
     this.invHeader.innerText = this.headerText;
     this.elemCont.appendChild(this.invHeader);
+
+    const heldItemStr = localStorage.getItem("heldItem");
+    if (heldItemStr && heldItemStr !== "") {
+      this.holdItem(heldItemStr);
+    }
   }
 
   get holdingItem(): boolean {
@@ -363,7 +410,7 @@ class Player {
   posLatLng: leaflet.LatLng;
   marker: leaflet.Marker;
 
-  centerOnPlayer: boolean = false;
+  centerOnPlayer: boolean = true;
   moveWithGps: boolean = false;
 
   constructor(poslatlng: leaflet.LatLng, map: leaflet.Map) {
@@ -371,6 +418,11 @@ class Player {
     this.marker = leaflet.marker(poslatlng);
     this.marker.bindTooltip("That's you!");
     this.marker.addTo(map);
+
+    const playerPosStr = localStorage.getItem("playerPos");
+    if (playerPosStr) {
+      this.setPlayerPos(latLngFromString(playerPosStr));
+    }
 
     // Set up GPS movement if available
     if (navigator.geolocation) {
@@ -447,6 +499,7 @@ class Player {
 
     const focusBtn = document.createElement("input");
     focusBtn.type = "checkbox";
+    focusBtn.checked = this.centerOnPlayer;
     playerFocusCont.appendChild(focusBtn);
     const focusLabel = document.createElement("label");
     focusLabel.innerText = "Center map on player";
@@ -463,6 +516,7 @@ class Player {
 
     const gpsBtn = document.createElement("input");
     gpsBtn.type = "checkbox";
+    gpsBtn.checked = this.moveWithGps;
     moveWithGpsCont.appendChild(gpsBtn);
     const gpsLabel = document.createElement("label");
     gpsLabel.innerText = "Move player with GPS";
@@ -470,6 +524,18 @@ class Player {
     gpsBtn.addEventListener("click", () => {
       this.moveWithGps = gpsBtn.checked;
     });
+  }
+
+  createResetBtn(containerToAppendTo: HTMLElement) {
+    const resetBtn = document.createElement("button");
+    resetBtn.id = "reset-btn";
+    resetBtn.innerHTML = "Reset<br>Game";
+    containerToAppendTo.appendChild(resetBtn);
+    resetBtn.onclick = () => {
+      if (confirm("Are you sure? This will erase all progress.")) {
+        map.resetGame();
+      }
+    };
   }
 
   setPlayerPos(newLatLng: leaflet.LatLng | undefined = undefined) {
@@ -535,16 +601,12 @@ function distanceInDegrees(a: leaflet.LatLng, b: leaflet.LatLng): number {
 // Utility: function that converts toString output of LatLng back into a LatLng object
 function latLngFromString(latlngStr: string): leaflet.LatLng {
   let startLatLng = 0;
-  let endLatLng = 0;
   for (let i = 0; i < latlngStr.length; i++) {
     if (latlngStr[i] === "(") {
       startLatLng = i + 1;
     }
-    if (latlngStr[i] === ")") {
-      endLatLng = i;
-    }
   }
-  latlngStr = latlngStr.substring(startLatLng, endLatLng);
+  latlngStr = latlngStr.substring(startLatLng, latlngStr.length);
 
   const [latStr, lngStr] = latlngStr.split(",");
   const lat = parseFloat(latStr);
@@ -554,6 +616,30 @@ function latLngFromString(latlngStr: string): leaflet.LatLng {
     return leaflet.latLng(0, 0);
   }
   return leaflet.latLng(lat, lng);
+}
+
+//Utility: function that grabs a substring between an open and close character
+function substringBetween(str: string, openAndCloseChar: string): string {
+  if (openAndCloseChar.length !== 2) {
+    console.error("Invalid openAndCloseChar: ", openAndCloseChar);
+    return "";
+  }
+  const openChar = openAndCloseChar[0];
+  const closeChar = openAndCloseChar[1];
+  let start = -1;
+  let end = -1;
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] === openChar && start === -1) {
+      start = i + 1;
+    } else if (str[i] === closeChar && start !== -1) {
+      end = i;
+      break;
+    }
+  }
+  if (start !== -1 && end !== -1) {
+    return str.substring(start, end);
+  }
+  return "";
 }
 
 // Utility: function that prints the contents of a map (for debugging)
@@ -577,24 +663,7 @@ const inventory = new Inventory();
 const player = new Player(CLASSROOM_LATLNG, map.obj);
 player.createMvmntButtons();
 player.createSettingsButtons(inventory.invCont);
-
-// Load state (if it exists) from localStorage when the page loads
-globalThis.addEventListener("load", () => {
-  const stowedCachedCaches = localStorage.getItem("cachedCaches");
-  if (stowedCachedCaches) {
-    map.stringToCachedCaches(stowedCachedCaches);
-  }
-
-  const playerPosStr = localStorage.getItem("playerPos");
-  if (playerPosStr) {
-    player.setPlayerPos(latLngFromString(playerPosStr));
-  }
-
-  const heldItemStr = localStorage.getItem("heldItem");
-  if (heldItemStr && heldItemStr !== "") {
-    inventory.holdItem(heldItemStr);
-  }
-});
+player.createResetBtn(inventory.invCont);
 
 // Save state to localStorage before closing the page
 globalThis.addEventListener("beforeunload", () => {

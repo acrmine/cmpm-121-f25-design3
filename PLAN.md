@@ -63,6 +63,6 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 - [x] add a toggle box on the left side of the inventory for toggling camera focus on the player during movement and another on the right side which toggles movement based on gps location
 - [x] add functionality to both buttons for there respective purposes
-- [ ] add function "cachedCachesToString" and "stringToCachedCaches" for storing cached caches in local storage and getting it back
-- [ ] use localStorage api to save state between accesses of the website, should stow every currently active cache and then save the cachedCaches map as well as the player location and held item if there is one
-- [ ] add a reset game button to bottom left next to inventory on the other side
+- [x] add function "cachedCachesToString" and "stringToCachedCaches" for storing cached caches in local storage and getting it back
+- [x] use localStorage api to save state between accesses of the website, should stow every currently active cache and then save the cachedCaches map as well as the player location and held item if there is one
+- [x] add a reset game button to bottom left next to inventory on the other side
