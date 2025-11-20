@@ -41,6 +41,7 @@ type Coord = {
   y: number;
 };
 
+// could have made a global map of cache coords to rectangles to make it more flyweight
 interface Cache {
   posCoord: { i: number; j: number };
   rectangle: leaflet.Rectangle;
@@ -51,6 +52,8 @@ class LeafletMap {
   obj: leaflet.Map;
   origin: leaflet.LatLng;
   caches: Map<string, Cache> = new Map();
+
+  // Memento pattern storage for generated caches that aren't being rendered
   cachedCaches: Map<string, Map<leaflet.LatLng, number> | null> = new Map();
 
   winStatus: HTMLDivElement;
@@ -125,12 +128,12 @@ class LeafletMap {
 
     if (inventory.holdingItem) {
       if (inventory.heldItemValue !== tokenValue.toString()) {
-        const temp = inventory.heldItemValue;
+        const currInvntVal = inventory.heldItemValue;
         inventory.holdItem(tokenValue.toString());
 
-        if (temp !== null) {
-          tokenMarker.setIcon(this.getStdMarkerIcon(temp));
-          cache.tokens.set(tokenMarker, parseInt(temp));
+        if (currInvntVal !== null) {
+          tokenMarker.setIcon(this.getStdMarkerIcon(currInvntVal));
+          cache.tokens.set(tokenMarker, parseInt(currInvntVal));
         }
       } else {
         inventory.removeHeldItem();
@@ -640,14 +643,6 @@ function substringBetween(str: string, openAndCloseChar: string): string {
     return str.substring(start, end);
   }
   return "";
-}
-
-// Utility: function that prints the contents of a map (for debugging)
-function _printMapContents(map: Map<Coord, Cache>) {
-  console.log("Map contents:");
-  map.forEach((value: Cache, key: Coord) => {
-    console.log("Key: ", key, " Value: ", value);
-  });
 }
 
 // ************************************************
